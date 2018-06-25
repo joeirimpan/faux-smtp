@@ -14,13 +14,22 @@ if (process.env.NODE_ENV !== 'development') {
 
 // Setup express server and expose json endpoint to fetch mails
 const expressApp = express();
+expressApp.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  next();
+});
 const mails = [];
 expressApp.get('/mails.json', (req, res) => res.json(mails));
 
 // Format email headers
 function formatHeaders(headers) {
   const result = {};
-  headers.forEach((key, value) => { result[key] = value; });
+  headers.forEach((key, value) => {
+    result[key] = value;
+  });
   return result;
 }
 
@@ -34,8 +43,7 @@ function parseEmail(stream) {
 
 // Create an SMTP server and parse email info
 const smtpServer = new SMTPServer({
-  authOptional: true,
-  maxAllowedUnauthenticatedCommands: 1000,
+  disabledCommands: ['STARTTLS', 'AUTH'],
   onData(stream, session, callback) {
     parseEmail(stream).then(
       (mail) => {
@@ -54,6 +62,9 @@ smtpServer.on('error', (err) => {
 smtpServer.listen(1025, '0.0.0.0');
 
 let mainWindow;
+const winURL = process.env.NODE_ENV === 'development' ?
+  'http://localhost:9080' :
+  `file://${__dirname}/index.html`;
 
 function createWindow() {
   const serverAddr = 'http://localhost:5000';
@@ -68,9 +79,11 @@ function createWindow() {
       width: 800,
       height: 600,
     });
-    mainWindow.loadURL(`file://${__dirname}/index.html`);
+    mainWindow.loadURL(winURL);
     // mainWindow.webContents.openDevTools();
-    mainWindow.on('closed', () => { mainWindow = null; });
+    mainWindow.on('closed', () => {
+      mainWindow = null;
+    });
   };
   openWindow();
 }
